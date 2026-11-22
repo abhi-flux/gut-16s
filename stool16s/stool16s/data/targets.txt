@@ -1,0 +1,23 @@
+cat > targets.txt << 'EOF'
+Faecalibacterium: F. prausnitzii
+Roseburia: spp.
+Eubacterium: E. rectale
+Akkermansia: A. muciniphila
+Bacteroides: spp.
+Lactobacillus: L. rhamnosus, L. plantarum, L. reuteri
+Bifidobacterium: B. longum, B. breve, B. infantis
+Enterococcus: spp.
+Streptococcus: spp.
+Escherichia: E. coli
+Bacillus: spp.
+Clostridium: C. difficile, other Clostridium spp.
+Coprococcus: spp.
+Dialister: spp.
+Prevotella: spp.
+Desulfovibrio: spp.
+Klebsiella: spp.
+Shigella: spp.
+Eggerthella: E. lenta
+Ruminococcus: R. gnavus
+Campylobacter: C. jejuni
+EOF

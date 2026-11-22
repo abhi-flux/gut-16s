@@ -1,0 +1,57 @@
+name: Build Windows app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python packages
+        run: python -m pip install -r requirements.txt pyinstaller
+
+      - name: Download BLAST+ for Windows from NCBI
+        shell: pwsh
+        run: |
+          $base = "https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/"
+          $listing = (Invoke-WebRequest -Uri $base -UseBasicParsing).Content
+          $m = [regex]::Match($listing, 'ncbi-blast-[0-9.]+(\+|%2B)-x64-win64\.tar\.gz')
+          if (-not $m.Success) { throw "Could not find the BLAST+ Windows archive in $base" }
+          $name = [uri]::UnescapeDataString($m.Value)
+          Write-Host "Downloading $name"
+          Invoke-WebRequest -Uri ($base + [uri]::EscapeDataString($name)) -OutFile blast.tar.gz
+          tar -xzf blast.tar.gz
+          $src = Get-ChildItem -Directory -Filter "ncbi-blast-*" | Select-Object -First 1
+          New-Item -ItemType Directory -Force -Path blast_bin | Out-Null
+          Copy-Item "$($src.FullName)\bin\blastn.exe" blast_bin
+          Copy-Item "$($src.FullName)\bin\makeblastdb.exe" blast_bin
+          Get-ChildItem "$($src.FullName)\bin" -Filter *.dll | Copy-Item -Destination blast_bin
+          .\blast_bin\blastn.exe -version
+          .\blast_bin\makeblastdb.exe -version
+
+      - name: Build the app
+        run: pyinstaller --noconfirm --clean stool16s.spec
+
+      - name: Self-test the built app
+        shell: pwsh
+        run: |
+          $report = Join-Path $PWD "selftest_report.txt"
+          $p = Start-Process -FilePath ".\dist\Stool16S\Stool16S.exe" `
+               -ArgumentList "--selftest", "`"$report`"" -Wait -PassThru
+          if (Test-Path $report) { Get-Content $report } else { Write-Host "No report was written" }
+          if ($p.ExitCode -ne 0) { throw "Self-test failed (exit code $($p.ExitCode))" }
+
+      - name: Upload the app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stool16S-windows
+          path: dist/Stool16S
